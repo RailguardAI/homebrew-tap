@@ -1,0 +1,62 @@
+# Auto-Bump Homebrew Tap Workflow
+# Save as: .github/workflows/bump-insightctl.yml in RailguardAI/homebrew-tap repository
+
+name: Bump insightctl
+on:
+  repository_dispatch:
+    types: [new_release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.3)'
+        required: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TAP_TOKEN }}
+
+      - name: Update formula
+        run: |
+          # Get tag from input or repository_dispatch
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.event.client_payload.tag }}"
+          fi
+
+          # Remove 'v' prefix if present
+          VERSION="${TAG#v}"
+
+          echo "Updating insightctl formula to $TAG ($VERSION)"
+
+          # Download checksums
+          curl -sL -o checksums.txt "https://github.com/RailguardAI/railguard-mvp/releases/download/$TAG/checksums.txt"
+
+          # Extract SHA256s
+          LINUX_SHA=$(grep 'insightctl-linux-amd64$' checksums.txt | awk '{print $1}')
+          DARWIN_AMD64_SHA=$(grep 'insightctl-darwin-amd64$' checksums.txt | awk '{print $1}')
+          DARWIN_ARM64_SHA=$(grep 'insightctl-darwin-arm64$' checksums.txt | awk '{print $1}')
+
+          echo "Linux SHA: $LINUX_SHA"
+          echo "macOS AMD64 SHA: $DARWIN_AMD64_SHA"
+          echo "macOS ARM64 SHA: $DARWIN_ARM64_SHA"
+
+          # Update formula
+          sed -i "s/version \".*\"/version \"$VERSION\"/" Formula/insightctl.rb
+          sed -i "s|download/v[^/]*/|download/$TAG/|g" Formula/insightctl.rb
+          sed -i "/insightctl-linux-amd64/,+1s/sha256 \".*\"/sha256 \"$LINUX_SHA\"/" Formula/insightctl.rb
+          sed -i "/insightctl-darwin-amd64/,+1s/sha256 \".*\"/sha256 \"$DARWIN_AMD64_SHA\"/" Formula/insightctl.rb
+          sed -i "/insightctl-darwin-arm64/,+1s/sha256 \".*\"/sha256 \"$DARWIN_ARM64_SHA\"/" Formula/insightctl.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "release-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add Formula/insightctl.rb
+          git commit -m "insightctl: bump to ${{ github.event.client_payload.tag || github.event.inputs.tag }}" || exit 0
+          git push
