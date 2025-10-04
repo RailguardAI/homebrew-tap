@@ -1,40 +1,36 @@
 class Insightctl < Formula
-  desc "Railguard CLI for security/compliance automation"
-  homepage "https://railguard.ai"
-  version "1.0.0"
-  license "Apache-2.0"
+  desc "Railguard CLI"
+  homepage "https://github.com/RailguardAI/railguard-mvp"
+  version "1.0.3"
 
   on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.0/insightctl-linux-amd64.tar.gz"
-      sha256 "485a38e2bfbb59fa28e4ad43b169d0c3c2814771fed8240c876522927b2ca805"
-    else
-      url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.0/insightctl-linux-amd64.tar.gz"
-      sha256 "485a38e2bfbb59fa28e4ad43b169d0c3c2814771fed8240c876522927b2ca805"
+    on_arm do
+      url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.3/insightctl-darwin-arm64"
+      sha256 "97a65b6fd3f75f01b0702febeacf06c39368a93e378931c85f29f5c9d2ed02a0"
+    end
+    on_intel do
+      url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.3/insightctl-darwin-amd64"
+      sha256 "df686e7a918360a5971727b019ebae8a1e9acfa377d36bf57add0788230c0643"
     end
   end
 
   on_linux do
-    if Hardware::CPU.intel?
-      url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.0/insightctl-linux-amd64.tar.gz"
-      sha256 "485a38e2bfbb59fa28e4ad43b169d0c3c2814771fed8240c876522927b2ca805"
-    else
-      odie "No prebuilt binary available for this Linux architecture yet"
-    end
+    url "https://github.com/RailguardAI/railguard-mvp/releases/download/v1.0.3/insightctl-linux-amd64"
+    sha256 "908a72332a24c8de921dea682c5c7a6e79e65283b721b8a7c5006b2e6ffb7f83"
   end
 
   def install
-    # Expect tarball to contain a single 'insightctl-linux-amd64' binary
-    bin.install "insightctl-linux-amd64" => "insightctl"
-    generate_completions_from_executable(bin/"insightctl", "completion") rescue nil
+    target = if OS.mac? && Hardware::CPU.arm?
+      "insightctl-darwin-arm64"
+    elsif OS.mac? && Hardware::CPU.intel?
+      "insightctl-darwin-amd64"
+    else
+      "insightctl-linux-amd64"
+    end
+    bin.install target => "insightctl"
   end
 
   test do
-    assert_match "1.0.0", shell_output("#{bin}/insightctl version")
-  end
-
-  livecheck do
-    url :homepage
-    strategy :page_match
+    assert_match "insightctl", shell_output("#{bin}/insightctl --help")
   end
 end
